@@ -1,0 +1,55 @@
+model {
+
+    for (i in 1:n) {
+        for (k in 1:m) {
+            D[i, k] <- (theta[i]*(1-delta[k]))/(theta[i]*(1-delta[k])+(1-theta[i])*delta[k])
+            pY[i,k] <- g[i] - D[i,k]*g[i] + D[i,k]*Z[k]
+            Y[i,k] ~ dbern(pY[i,k])
+        }
+    }
+
+    for (i in 1:n) {
+        mean_theta[i] <- Xtheta[i,]%*%coeff_theta
+        mean_g[i] <- Xg[i,]%*%coeff_g
+        mean_thetag[i,1] <- mean_theta[i]
+        mean_thetag[i,2] <- mean_g[i]
+        logit_thetag[i,1:2] ~ dmnorm(mean_thetag[i,1:2], precM_thetag)
+        theta[i] <- ilogit(logit_thetag[i,1])
+        g[i] <- ilogit(logit_thetag[i,2])
+    }
+
+    for (k in 1:m) {
+        Z[k] ~ dbern(PI)
+        delta[k] <- ilogit(logit_delta[k])
+        mean_delta[k] <- Xdelta[k,]%*%coeff_delta
+        logit_delta[k] ~ dnorm(mean_delta[k],prec_delta)
+    }
+
+    for (cov in 1:nrofthetacov){
+        coeff_theta[cov] ~ dnorm(0, 0.01)
+    }
+
+    for (cov in 1:nrofgcov) {
+        coeff_g[cov] ~ dnorm(0, 0.01)
+    }
+
+    cov_thetag[1:2,1:2] <- inverse(precM_thetag[1:2, 1:2])
+    var_theta <- cov_thetag[1,1]
+    var_g <- cov_thetag[2,2]
+    corr_thetag <- cov_thetag[1,2]/(sqrt(var_theta)*sqrt(var_g))
+
+    precM_thetag[1:2, 1:2] ~ dwish(ID[1:2,1:2], 3)
+    ID[1,1] <- 1
+    ID[2,2] <- 1
+    ID[1,2] <- 0
+    ID[2,1] <- 0
+
+    for (cov in 1:nrofdeltacov) {
+        coeff_delta[cov] ~ dnorm(0, 0.01)
+    }
+
+    prec_delta ~ dgamma(0.01, 0.01)
+    var_delta <- 1/prec_delta
+
+    PI ~ dunif(0, 1)
+}
